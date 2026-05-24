@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Эндокринный эквалайзер v3.0</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Courier New',monospace;
+  background:#111;
+  color:#ccc;
+  min-height:100vh;
+  padding-bottom:20px;
+}
+#winamp{
+  background:#1a1a1a;
+  border:2px solid #555;
+  border-radius:4px;
+  width:100%;
+  max-width:700px;
+  margin:0 auto;
+  user-select:none;
+}
+#titlebar{
+  background:linear-gradient(to bottom,#444,#222);
+  padding:5px 10px;
+  display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid #555;
+}
+.dot{width:10px;height:10px;border-radius:50%;border:1px solid #666;flex-shrink:0}
+.dot.r{background:#c0392b}.dot.y{background:#f39c12}.dot.g{background:#27ae60}
+.wa-title{flex:1;text-align:center;font-size:10px;color:#00ff41;letter-spacing:1.5px}
+#display{
+  background:#000;padding:7px 12px;border-bottom:1px solid #333;
+  display:flex;gap:10px;align-items:center;
+}
+#vis{width:110px;height:36px;background:#000;flex-shrink:0;border:1px solid #1a1a1a}
+#status-text{flex:1;overflow:hidden}
+#status-main{font-size:12px;color:#00e5ff;font-weight:bold;margin-bottom:2px}
+#status-sub{font-size:9px;color:#666;line-height:1.3}
+.section-header{
+  padding:4px 10px 3px;font-size:9px;letter-spacing:2px;
+  border-top:1px solid #2a2a2a;border-bottom:1px solid #1a1a1a;
+}
+.sh-h{color:#00e5ff;background:#0a0f0a}
+.sh-b{color:#ff6b6b;background:#0f0a0a}
+.sh-l{color:#ffaa44;background:#0f0d08}
+#eq-label-row{display:flex;justify-content:space-between;padding:2px 8px 3px;background:#111}
+.eq-end-label{font-size:8px;color:#444}
+.sliders-section{background:#111;padding:6px 4px 4px;overflow-x:auto}
+.sliders-grid{display:grid;gap:2px;min-width:max-content}
+.grid-21{grid-template-columns:repeat(21,1fr)}
+.grid-5{grid-template-columns:repeat(5,1fr)}
+.grid-6{grid-template-columns:repeat(6,1fr)}
+.eq-col{display:flex;flex-direction:column;align-items:center;gap:3px}
+.eq-name{
+  font-size:9px;color:#00e5ff;text-align:center;
+  writing-mode:vertical-rl;transform:rotate(180deg);
+  height:52px;line-height:1.1;letter-spacing:.5px;
+  cursor:help;font-weight:bold;
+}
+.eq-name.blood{color:#ff8888}
+.eq-name.leuko{color:#ffbb66}
+.slider-track{
+  width:14px;height:110px;background:#0a0a0a;
+  border:1px solid #282828;border-radius:2px;
+  position:relative;cursor:pointer;touch-action:none;
+}
+.slider-track.wide{width:22px}
+.center-mark{position:absolute;left:0;right:0;top:50%;border-top:1px solid #2a2a2a;pointer-events:none}
+.slider-fill{position:absolute;bottom:0;left:0;right:0;border-radius:1px;transition:height .1s,background .15s}
+.fill-norm{background:#00ff41}.fill-high{background:#ff4444}.fill-low{background:#4488ff}
+.fill-bn{background:#cc3333}.fill-bh{background:#ff6600}.fill-bl{background:#884444}
+.fill-ln{background:#cc8833}.fill-lh{background:#ffcc00}.fill-ll{background:#886622}
+.slider-knob{
+  position:absolute;left:50%;transform:translateX(-50%);
+  width:14px;height:5px;background:#bbb;border-radius:1px;
+  border:1px solid #777;cursor:ns-resize;transition:bottom .1s;
+}
+.slider-track.wide .slider-knob{width:22px}
+.eq-val{font-size:8px;color:#555;min-height:10px;text-align:center}
+#eq-bottom{background:#0d0d0d;padding:6px 10px;border-top:1px solid #333}
+.btn-row{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px}
+.wa-btn{
+  font-family:'Courier New',monospace;font-size:8px;color:#aaa;
+  background:#222;border:1px solid #444;border-radius:2px;
+  padding:4px 7px;cursor:pointer;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
+}
+.wa-btn:active{background:#444;color:#fff}
+.wa-btn.blood{border-color:#553333;color:#ff8888}
+.wa-btn.blood:active{background:#2a1515}
+#log-panel{
+  background:#000;border:1px solid #1e1e1e;border-radius:2px;
+  padding:4px 7px;font-size:8.5px;color:#555;
+  width:100%;line-height:1.7;min-height:30px;
+}
+.le{color:#00ff41}.le-neg{color:#4488ff}.le-warn{color:#ffaa00}.le-blood{color:#ff6666}
+</style>
+</head>
+<body>
+<div id="winamp">
+  <div id="titlebar">
+    <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+    <div class="wa-title">ENDOCRINE EQ v3.0 — 30 PARAMS</div>
+  </div>
+  <div id="display">
+    <canvas id="vis" width="110" height="36"></canvas>
+    <div id="status-text">
+      <div id="status-main">НОРМА</div>
+      <div id="status-sub">Все параметры в референсном диапазоне</div>
+    </div>
+  </div>
+  <div class="section-header sh-h">/// ГОРМОНЫ И ЛИПИДЫ (21)</div>
+  <div id="eq-label-row">
+    <span class="eq-end-label">+200%</span>
+    <span class="eq-end-label" style="color:#222">НОРМА</span>
+    <span class="eq-end-label">−80%</span>
+  </div>
+  <div class="sliders-section"><div id="sliders-hormones" class="sliders-grid grid-21"></div></div>
+  <div class="section-header sh-b">/// КЛЕТКИ КРОВИ (5)</div>
+  <div class="sliders-section"><div id="sliders-blood" class="sliders-grid grid-5"></div></div>
+  <div class="section-header sh-l">/// ЛЕЙКОЦИТАРНАЯ ФОРМУЛА (6)</div>
+  <div class="sliders-section"><div id="sliders-leuko" class="sliders-grid grid-6"></div></div>
+  <div id="eq-bottom">
+    <div class="btn-row">
+      <button class="wa-btn" onclick="resetAll()">RESET</button>
+      <button class="wa-btn" onclick="setPreset('stress')">СТРЕСС</button>
+      <button class="wa-btn" onclick="setPreset('hypo')">ГИПОТИРЕОЗ</button>
+      <button class="wa-btn" onclick="setPreset('pcos')">СПКЯ</button>
+      <button class="wa-btn" onclick="setPreset('menopause')">МЕНОПАУЗА</button>
+      <button class="wa-btn" onclick="setPreset('metasyn')">МЕТ.СИНДРОМ</button>
+      <button class="wa-btn" onclick="setPreset('acromeg')">АКРОМЕГАЛИЯ</button>
+    </div>
+    <div class="btn-row">
+      <button class="wa-btn blood" onclick="setPreset('anemia')">АНЕМИЯ</button>
+      <button class="wa-btn blood" onclick="setPreset('infect')">ИНФЕКЦИЯ</button>
+      <button class="wa-btn blood" onclick="setPreset('allergy')">АЛЛЕРГИЯ</button>
+      <button class="wa-btn blood" onclick="setPreset('leukemia')">ЛЕЙКОЗ</button>
+      <button class="wa-btn blood" onclick="setPreset('thromboc')">ТРОМБОЦИТОПЕНИЯ</button>
+    </div>
+    <div id="log-panel">Перемещайте ползунки — система покажет каскадные эффекты</div>
+  </div>
+</div>
+
+<script>
+// Telegram WebApp init
+if (window.Telegram && window.Telegram.WebApp) {
+  window.Telegram.WebApp.ready();
+  window.Telegram.WebApp.expand();
+}
+
+const HORMONES=[
+  {id:'CRH',name:'КРГ',full:'Кортикотропин-рилизинг гормон',grp:'h'},
+  {id:'ACTH',name:'АКТГ',full:'Адренокортикотропный гормон',grp:'h'},
+  {id:'CORT',name:'Корти-зол',full:'Кортизол',grp:'h'},
+  {id:'ALDO',name:'Альдо-стерон',full:'Альдостерон',grp:'h'},
+  {id:'TSH',name:'ТТГ',full:'Тиреотропный гормон',grp:'h'},
+  {id:'T3T4',name:'Т3/Т4',full:'Тироксин / трийодтиронин',grp:'h'},
+  {id:'GH',name:'СТГ',full:'Соматотропный гормон',grp:'h'},
+  {id:'IGF1',name:'ИФР-1',full:'Инсулиноподобный фактор роста-1',grp:'h'},
+  {id:'LH',name:'ЛГ',full:'Лютеинизирующий гормон',grp:'h'},
+  {id:'FSH',name:'ФСГ',full:'Фолликулостимулирующий гормон',grp:'h'},
+  {id:'TEST',name:'Тесто-рон',full:'Тестостерон',grp:'h'},
+  {id:'E2',name:'Эстра-диол',full:'Эстрадиол',grp:'h'},
+  {id:'PRL',name:'Про-лактин',full:'Пролактин',grp:'h'},
+  {id:'OXT',name:'Окси-тоцин',full:'Окситоцин',grp:'h'},
+  {id:'INS',name:'Инсулин',full:'Инсулин',grp:'h'},
+  {id:'PTH',name:'ПТГ',full:'Паратиреоидный гормон',grp:'h'},
+  {id:'EPO',name:'ЭПО',full:'Эритропоэтин',grp:'h'},
+  {id:'SERO',name:'Серото-нин',full:'Серотонин',grp:'h'},
+  {id:'HDL',name:'ЛПВП',full:'Липопротеины высокой плотности',grp:'h'},
+  {id:'LDL',name:'ЛПНП',full:'Липопротеины низкой плотности',grp:'h'},
+  {id:'HCY',name:'Гомо-цист.',full:'Гомоцистеин',grp:'h'},
+];
+const BLOOD_CELLS=[
+  {id:'RBC',name:'Эритро-циты',full:'Эритроциты (RBC)',grp:'b'},
+  {id:'WBC',name:'Лейко-циты',full:'Лейкоциты общие (WBC)',grp:'b'},
+  {id:'PLT',name:'Тромбо-циты',full:'Тромбоциты (PLT)',grp:'b'},
+  {id:'LYM',name:'Лимфо-циты',full:'Лимфоциты абс.',grp:'b'},
+  {id:'HGB',name:'Гемо-глобин',full:'Гемоглобин (HGB)',grp:'b'},
+];
+const LEUKO_FORM=[
+  {id:'NEU',name:'Нейтро-филы',full:'Нейтрофилы, норма 47–72%',grp:'l'},
+  {id:'EOS',name:'Эозино-филы',full:'Эозинофилы, норма 1–5%',grp:'l'},
+  {id:'BAS',name:'Базо-филы',full:'Базофилы, норма 0–1%',grp:'l'},
+  {id:'MON',name:'Моно-циты',full:'Моноциты, норма 3–11%',grp:'l'},
+  {id:'LYM2',name:'Лимфо-циты%',full:'Лимфоциты % формулы',grp:'l'},
+  {id:'BAND',name:'Палочко-ядерн.',full:'Палочкоядерные нейтрофилы',grp:'l'},
+];
+const ALL=[...HORMONES,...BLOOD_CELLS,...LEUKO_FORM];
+const vals={};
+ALL.forEach(p=>vals[p.id]=50);
+
+const INTERACTIONS={
+  CRH:(v,d)=>{push('ACTH',d*0.9,'КРГ стимулирует АКТГ (ось HPA)');push('GH',-d*0.3,'Стресс подавляет СТГ');push('LYM',-d*0.2,'Кортизол снижает лимфоциты');push('NEU',d*0.2,'КРГ→демаргинация нейтрофилов');},
+  ACTH:(v,d)=>{push('CORT',d*0.85,'АКТГ→синтез кортизола');push('ALDO',d*0.15,'АКТГ слабо стимулирует альдостерон');},
+  CORT:(v,d)=>{push('CRH',-d*0.7,'Кортизол: отриц. ОС на гипоталамус');push('ACTH',-d*0.6,'Кортизол: отриц. ОС на гипофиз');push('TSH',-d*0.3,'Кортизол подавляет ТТГ');push('GH',-d*0.4,'Кортизол подавляет СТГ');push('INS',d*0.4,'Кортизол→инсулинорезистентность');push('LDL',d*0.35,'Кортизол стимулирует ЛПНП');push('HDL',-d*0.2,'Гиперкортизолемия снижает ЛПВП');push('IGF1',-d*0.35,'Кортизол тормозит ИФР-1');push('SERO',-d*0.3,'Хронический стресс истощает серотонин');push('HCY',d*0.25,'Кортизол нарушает метаболизм гомоцистеина');push('LYM',-d*0.5,'Кортизол→лимфопения');push('NEU',d*0.4,'Кортизол→нейтрофилия');push('EOS',-d*0.4,'Кортизол подавляет эозинофилы');push('MON',-d*0.25,'Кортизол снижает моноциты');push('WBC',d*0.3,'Кортизол→лейкоцитоз');push('PLT',d*0.2,'Стрессовый тромбоцитоз');},
+  ALDO:(v,d)=>{push('EPO',d*0.2,'Альдостерон→↑ОЦК→стимул ЭПО');push('HCY',d*0.15,'Гиперальдостеронизм→↑гомоцистеин');push('RBC',d*0.15,'↑ОЦК→гемодилюция→↓RBC отн.');},
+  TSH:(v,d)=>{push('T3T4',d*0.9,'ТТГ стимулирует синтез Т3/Т4');},
+  T3T4:(v,d)=>{push('TSH',-d*0.8,'Т3/Т4: отриц. ОС на гипофиз');push('CORT',d*0.2,'Гипертиреоз ускоряет клиренс кортизола');push('PRL',-d*0.2,'Тироксин тормозит пролактин');push('INS',d*0.25,'Т3/Т4 повышают утилизацию глюкозы');push('GH',d*0.2,'Тиреоидные гормоны потенцируют СТГ');push('LDL',-d*0.4,'Т3/Т4 усиливают клиренс ЛПНП');push('HDL',d*0.2,'Тиреоидные гормоны повышают ЛПВП');push('HCY',-d*0.3,'Т3/Т4 стимулируют реметилирование гомоцистеина');push('SERO',d*0.15,'Т3—кофактор триптофангидроксилазы');push('RBC',d*0.2,'Т3/Т4 стимулируют эритропоэз');push('HGB',d*0.2,'Тироксин стимулирует гемоглобин');},
+  GH:(v,d)=>{push('IGF1',d*0.9,'СТГ→синтез ИФР-1 в печени');push('INS',-d*0.3,'СТГ контринсулярен');push('LDL',-d*0.25,'СТГ/ИФР-1 снижают ЛПНП');push('HDL',d*0.3,'СТГ повышает ЛПВП');push('EPO',d*0.2,'СТГ и ИФР-1 стимулируют ЭПО');push('RBC',d*0.2,'СТГ стимулирует эритропоэз');push('PLT',d*0.15,'СТГ стимулирует тромбопоэтин');},
+  IGF1:(v,d)=>{push('GH',-d*0.6,'ИФР-1: отриц. ОС на гипофиз');push('INS',-d*0.2,'ИФР-1 снижает потребность в инсулине');push('LDL',-d*0.2,'ИФР-1 усиливает клиренс ЛПНП');push('RBC',d*0.15,'ИФР-1 стимулирует эритропоэз');},
+  LH:(v,d)=>{push('TEST',d*0.85,'ЛГ→тестостерон (клетки Лейдига)');push('E2',d*0.5,'ЛГ инициирует овуляцию и синтез E2');},
+  FSH:(v,d)=>{push('E2',d*0.6,'ФСГ стимулирует фолликулогенез и E2');push('TEST',d*0.2,'ФСГ поддерживает сперматогенез');},
+  TEST:(v,d)=>{push('E2',d*0.6,'Тестостерон→ароматизация→эстрадиол (CYP19A1)');push('LH',-d*0.5,'Тестостерон: отриц. ОС на ЛГ');push('FSH',-d*0.3,'Тестостерон подавляет ФСГ через ингибин');push('PRL',d*0.15,'Высокий тестостерон умеренно↑пролактин');push('HDL',-d*0.35,'Андрогены снижают ЛПВП');push('LDL',d*0.2,'Тестостерон умеренно↑ЛПНП');push('HCY',d*0.3,'Андрогены повышают гомоцистеин');push('EPO',d*0.4,'Тестостерон стимулирует ЭПО');push('RBC',d*0.35,'Тестостерон→эритропоэз→↑RBC');push('HGB',d*0.35,'Тестостерон стимулирует гемоглобин');push('PLT',d*0.1,'Андрогены умеренно активируют тромбоциты');push('GH',d*0.15,'Тестостерон потенцирует СТГ');},
+  E2:(v,d)=>{push('PRL',d*0.55,'E2 стимулирует лактотрофы→↑пролактин');push('LH',-d*0.4,'E2: отриц. ОС на ЛГ');push('FSH',-d*0.5,'E2 тормозит ФСГ');push('TSH',d*0.2,'Эстрогены усиливают связывание тироксина');push('INS',-d*0.2,'E2 повышает чувствит. к инсулину');push('HDL',d*0.4,'E2—ключевой стимулятор ЛПВП');push('LDL',-d*0.3,'E2 усиливает клиренс ЛПНП');push('HCY',-d*0.35,'Эстрогены снижают гомоцистеин');push('OXT',d*0.3,'E2 повышает экспрессию рецепторов окситоцина');push('SERO',d*0.4,'Эстрогены усиливают серотонинергическую передачу');push('EPO',d*0.15,'Эстрогены умеренно стимулируют ЭПО');push('PTH',-d*0.25,'E2 снижает костную резорбцию→меньше стимула ПТГ');push('PLT',-d*0.15,'Эстрогены умеренно снижают агрегацию тромбоцитов');push('LYM',d*0.2,'Эстрогены усиливают иммунный ответ');push('EOS',d*0.15,'Эстрогены умеренно стимулируют эозинофилы');},
+  PRL:(v,d)=>{push('LH',-d*0.6,'Гиперпролактинемия подавляет ЛГ');push('FSH',-d*0.5,'Гиперпролактинемия подавляет ФСГ');push('E2',-d*0.4,'Пролактин нарушает фолликулогенез→↓E2');push('TEST',-d*0.35,'Гиперпролактинемия снижает тестостерон');push('TSH',d*0.15,'ТРГ стимулирует и ТТГ, и пролактин');push('INS',d*0.2,'Пролактин повышает инсулинорезистентность');push('LYM',d*0.25,'Пролактин—иммуностимулятор→↑лимфоциты');},
+  OXT:(v,d)=>{push('SERO',d*0.4,'Окситоцин потенцирует серотонин');push('CORT',-d*0.3,'Окситоцин снижает стрессовую реакцию');push('PRL',d*0.2,'Окситоцин стимулирует пролактин при лактации');push('LYM',d*0.15,'Окситоцин иммуномодулирует');},
+  INS:(v,d)=>{push('TEST',d*0.3,'Гиперинсулинемия стимулирует андрогены (СПКЯ)');push('E2',d*0.2,'Инсулин усиливает ароматизацию');push('CORT',-d*0.2,'Инсулин оппозиционен кортизолу');push('IGF1',d*0.3,'Инсулин и ИФР-1: общие рецепторы');push('LDL',d*0.3,'Гиперинсулинемия усиливает синтез ЛПНП');push('HDL',-d*0.3,'Инсулинорезистентность снижает ЛПВП');push('HCY',d*0.2,'Гиперинсулинемия нарушает метаболизм гомоцистеина');push('ALDO',d*0.15,'Инсулин стимулирует синтез альдостерона');push('PLT',d*0.2,'Гиперинсулинемия активирует тромбоциты');push('NEU',d*0.2,'Инсулинорезистентность→нейтрофилия');},
+  PTH:(v,d)=>{push('EPO',-d*0.2,'ПТГ при гиперпаратиреозе угнетает эритропоэз');push('HCY',d*0.1,'Высокий ПТГ→↑гомоцистеин');push('RBC',-d*0.2,'Гиперпаратиреоз подавляет эритропоэз→↓RBC');push('HGB',-d*0.15,'Гиперпаратиреоз→анемия→↓гемоглобин');},
+  EPO:(v,d)=>{push('RBC',d*0.8,'ЭПО→главный стимулятор эритропоэза→↑RBC');push('HGB',d*0.75,'ЭПО→↑синтез гемоглобина');push('HCY',-d*0.15,'Нормальный эритропоэз снижает гомоцистеин');push('PLT',d*0.1,'ЭПО умеренно стимулирует тромбопоэз');},
+  SERO:(v,d)=>{push('CORT',-d*0.25,'Серотонин снижает активность оси HPA');push('GH',d*0.2,'Серотонин стимулирует секрецию СТГ');push('OXT',d*0.3,'Серотонин и окситоцин взаимно потенцируют');push('PLT',d*0.3,'Серотонин хранится в тромбоцитах и активирует агрегацию');push('LYM',d*0.15,'Серотонин модулирует функцию лимфоцитов');},
+  HDL:(v,d)=>{push('LDL',-d*0.5,'ЛПВП обратный транспорт холестерина→↓ЛПНП');push('HCY',-d*0.2,'ЛПВП ингибируют окисление гомоцистеина');},
+  LDL:(v,d)=>{push('HDL',-d*0.4,'Высокий ЛПНП→↓обратный транспорт→↓ЛПВП');push('TEST',d*0.15,'ЛПНП—субстрат стероидных гормонов');push('CORT',d*0.15,'ЛПНП—субстрат кортизола');push('HCY',d*0.25,'Окисленный ЛПНП угнетает реметилирование гомоцистеина');push('PLT',d*0.2,'Окисленный ЛПНП активирует тромбоциты');push('NEU',d*0.15,'Окисленный ЛПНП→воспаление→нейтрофилия');push('MON',d*0.25,'ЛПНП→воспаление эндотелия→моноцитоз');},
+  HCY:(v,d)=>{push('EPO',-d*0.2,'Гомоцистеин угнетает ЭПО и эритропоэз');push('HDL',-d*0.25,'Гипергомоцистеинемия снижает ЛПВП');push('SERO',-d*0.2,'Гомоцистеин нарушает синтез серотонина');push('OXT',-d*0.15,'Оксидативный стресс от HCY снижает окситоцин');push('RBC',-d*0.2,'Гомоцистеин нарушает созревание эритроцитов');push('PLT',d*0.25,'Гипергомоцистеинемия активирует тромбоциты→тромбоз');push('NEU',d*0.1,'Гомоцистеин→эндотелиальное воспаление→нейтрофилия');},
+  RBC:(v,d)=>{push('HGB',d*0.7,'↑RBC→↑гемоглобин');push('EPO',-d*0.4,'↑RBC→↑pO2→отриц. ОС на ЭПО');push('PLT',d*0.1,'Полицитемия→тромбоцитоз');},
+  WBC:(v,d)=>{push('NEU',d*0.5,'↑WBC: нейтрофилия—наиболее частая причина лейкоцитоза');push('LYM',d*0.2,'↑WBC может включать лимфоцитоз');push('CORT',d*0.1,'Лейкоцитоз→воспаление→стимул оси HPA');},
+  PLT:(v,d)=>{push('SERO',d*0.2,'Тромбоциты—главное депо серотонина');},
+  LYM:(v,d)=>{push('LYM2',d*0.8,'Лимфоциты абс. и % тесно связаны');push('NEU',-d*0.4,'Лимфоцитоз→относит. снижение нейтрофилов');push('E2',d*0.1,'Лимфоциты экспрессируют рецепторы эстрогенов');},
+  HGB:(v,d)=>{push('EPO',-d*0.3,'↑Гемоглобин→↑O2→↓ЭПО');push('RBC',d*0.5,'Гемоглобин и RBC синхронны');},
+  NEU:(v,d)=>{push('WBC',d*0.6,'Нейтрофилия—главная причина лейкоцитоза');push('LYM',-d*0.3,'Нейтрофилия→относит. лимфопения');push('LYM2',-d*0.5,'↑нейтрофилы→↓% лимфоцитов');push('BAND',d*0.5,'Нейтрофилия→сдвиг влево');},
+  EOS:(v,d)=>{push('CORT',-d*0.2,'Эозинофилы очень чувствительны к кортизолу');push('BAS',d*0.3,'Эозинофилия и базофилия сочетаются при аллергии');},
+  BAS:(v,d)=>{push('EOS',d*0.2,'Базофилия и эозинофилия—оба IgE-зависимые');push('SERO',d*0.15,'Базофилы содержат серотонин');},
+  MON:(v,d)=>{push('LYM',d*0.15,'Моноцитоз и лимфоцитоз совместны при вирусных инфекциях');push('NEU',-d*0.2,'Моноцитоз часто при снижении нейтрофилов');push('CORT',-d*0.1,'Кортизол подавляет моноциты');},
+  LYM2:(v,d)=>{push('NEU',-d*0.6,'↑% лимфоцитов→↓% нейтрофилов');push('LYM',d*0.7,'Лимфоциты % и абс. тесно коррелируют');push('BAND',-d*0.2,'Лимфоцитоз формулы→↓палочкоядерные');},
+  BAND:(v,d)=>{push('NEU',d*0.4,'Сдвиг влево→нарастание зрелых нейтрофилов');push('WBC',d*0.3,'↑Палочки→лейкоцитоз');push('CORT',d*0.15,'Сдвиг влево→активация оси HPA');push('LYM2',-d*0.3,'Сдвиг влево снижает % лимфоцитов');},
+};
+
+let blocked=new Set(),logLines=[];
+function push(id,delta,msg){
+  if(blocked.has(id))return;
+  const old=vals[id];
+  vals[id]=Math.max(5,Math.min(200,vals[id]+delta));
+  const diff=vals[id]-old;
+  if(Math.abs(diff)<0.4)return;
+  const sign=diff>0?'↑':'↓';
+  const p=ALL.find(h=>h.id===id);if(!p)return;
+  const gc=p.grp==='b'||p.grp==='l'?'le-blood':'le';
+  const cls=diff>0?gc:'le-neg';
+  logLines.unshift(`<span class="${cls}">${sign} ${p.name.replace('-','')}: ${msg}</span>`);
+}
+function updateSlider(id,nv){
+  const d=nv-vals[id];vals[id]=nv;
+  if(Math.abs(d)<0.3)return;
+  blocked.clear();blocked.add(id);logLines=[];
+  if(INTERACTIONS[id])INTERACTIONS[id](nv,d);
+  blocked.clear();renderAll();updateLog();updateStatus();
+}
+function getFillClass(id,v){
+  const p=ALL.find(h=>h.id===id);
+  if(p.grp==='b')return'slider-fill '+(v>130?'fill-bh':v<30?'fill-bl':'fill-bn');
+  if(p.grp==='l')return'slider-fill '+(v>130?'fill-lh':v<30?'fill-ll':'fill-ln');
+  return'slider-fill '+(v>130?'fill-high':v<30?'fill-low':'fill-norm');
+}
+function renderAll(){
+  ALL.forEach(h=>{
+    const v=vals[h.id];
+    const px=Math.round((v/200)*110);
+    const fill=document.getElementById('fill-'+h.id);
+    const knob=document.getElementById('knob-'+h.id);
+    const vEl=document.getElementById('val-'+h.id);
+    if(!fill)return;
+    fill.style.height=px+'px';fill.className=getFillClass(h.id,v);
+    knob.style.bottom=Math.max(0,px-2)+'px';
+    const pct=Math.round((v-50)/50*100);
+    vEl.textContent=(pct>=0?'+':'')+pct+'%';
+    vEl.style.color=v>130?(h.grp==='h'?'#ff6666':h.grp==='b'?'#ff9966':'#ffcc66'):v<30?'#6699ff':'#444';
+  });
+}
+function updateLog(){
+  const el=document.getElementById('log-panel');
+  el.innerHTML=logLines.length===0?'Нет каскадных изменений':logLines.slice(0,5).join('<br>');
+}
+function updateStatus(){
+  const hi=ALL.filter(h=>vals[h.id]>130).map(h=>h.name.replace('-',''));
+  const lo=ALL.filter(h=>vals[h.id]<30).map(h=>h.name.replace('-',''));
+  const m=document.getElementById('status-main');
+  const s=document.getElementById('status-sub');
+  if(!hi.length&&!lo.length){m.textContent='НОРМА';m.style.color='#00e5ff';s.textContent='Все параметры в референсном диапазоне';}
+  else{m.textContent='ДИСБАЛАНС';m.style.color='#ff4444';const p=[];if(hi.length)p.push('↑ '+hi.slice(0,5).join(', '));if(lo.length)p.push('↓ '+lo.slice(0,5).join(', '));s.textContent=p.join(' | ');}
+}
+function resetAll(){ALL.forEach(h=>vals[h.id]=50);logLines=[];renderAll();document.getElementById('log-panel').innerHTML='Сброс — все параметры в норме';updateStatus();}
+const PRESETS={
+  stress:{CRH:165,ACTH:155,CORT:175,ALDO:62,TSH:35,T3T4:40,GH:25,IGF1:30,LH:38,FSH:38,TEST:32,E2:38,PRL:65,OXT:25,INS:85,PTH:50,EPO:50,SERO:22,HDL:38,LDL:75,HCY:75,RBC:50,WBC:80,PLT:70,LYM:30,HGB:50,NEU:75,EOS:18,BAS:18,MON:38,LYM2:25,BAND:65},
+  hypo:{CRH:50,ACTH:50,CORT:50,ALDO:50,TSH:175,T3T4:22,GH:45,IGF1:40,LH:50,FSH:50,TEST:48,E2:52,PRL:95,OXT:45,INS:65,PTH:55,EPO:52,SERO:38,HDL:42,LDL:80,HCY:80,RBC:40,WBC:50,PLT:50,LYM:55,HGB:38,NEU:50,EOS:50,BAS:50,MON:50,LYM2:55,BAND:30},
+  pcos:{CRH:55,ACTH:52,CORT:68,ALDO:55,TSH:52,T3T4:50,GH:50,IGF1:75,LH:145,FSH:32,TEST:155,E2:75,PRL:70,OXT:48,INS:165,PTH:50,EPO:55,SERO:45,HDL:32,LDL:80,HCY:70,RBC:58,WBC:65,PLT:80,LYM:45,HGB:55,NEU:68,EOS:45,BAS:45,MON:58,LYM2:42,BAND:45},
+  menopause:{CRH:52,ACTH:50,CORT:62,ALDO:48,TSH:58,T3T4:50,GH:38,IGF1:38,LH:175,FSH:175,TEST:38,E2:15,PRL:32,OXT:35,INS:58,PTH:80,EPO:48,SERO:38,HDL:55,LDL:70,HCY:75,RBC:42,WBC:50,PLT:55,LYM:45,HGB:40,NEU:52,EOS:50,BAS:50,MON:50,LYM2:50,BAND:35},
+  metasyn:{CRH:60,ACTH:58,CORT:75,ALDO:70,TSH:55,T3T4:48,GH:30,IGF1:55,LH:65,FSH:55,TEST:75,E2:60,PRL:60,OXT:42,INS:170,PTH:55,EPO:52,SERO:40,HDL:22,LDL:155,HCY:85,RBC:55,WBC:75,PLT:90,LYM:38,HGB:52,NEU:78,EOS:38,BAS:38,MON:70,LYM2:32,BAND:55},
+  acromeg:{CRH:50,ACTH:50,CORT:55,ALDO:50,TSH:50,T3T4:55,GH:175,IGF1:185,LH:50,FSH:50,TEST:55,E2:52,PRL:75,OXT:50,INS:60,PTH:50,EPO:70,SERO:50,HDL:58,LDL:42,HCY:55,RBC:68,WBC:60,PLT:70,LYM:52,HGB:65,NEU:58,EOS:50,BAS:50,MON:52,LYM2:50,BAND:40},
+  anemia:{CRH:52,ACTH:50,CORT:55,ALDO:50,TSH:55,T3T4:50,GH:52,IGF1:48,LH:50,FSH:52,TEST:48,E2:50,PRL:52,OXT:50,INS:50,PTH:65,EPO:165,SERO:38,HDL:50,LDL:52,HCY:70,RBC:18,WBC:50,PLT:50,LYM:52,HGB:18,NEU:50,EOS:50,BAS:50,MON:55,LYM2:55,BAND:42},
+  infect:{CRH:75,ACTH:70,CORT:85,ALDO:52,TSH:42,T3T4:42,GH:45,IGF1:42,LH:42,FSH:42,TEST:40,E2:42,PRL:65,OXT:48,INS:65,PTH:50,EPO:55,SERO:42,HDL:40,LDL:60,HCY:62,RBC:48,WBC:155,PLT:65,LYM:40,HGB:46,NEU:160,EOS:18,BAS:18,MON:70,LYM2:18,BAND:140},
+  allergy:{CRH:52,ACTH:50,CORT:52,ALDO:50,TSH:50,T3T4:50,GH:50,IGF1:50,LH:50,FSH:50,TEST:50,E2:60,PRL:52,OXT:50,INS:50,PTH:50,EPO:50,SERO:75,HDL:50,LDL:50,HCY:50,RBC:50,WBC:75,PLT:55,LYM:65,HGB:50,NEU:45,EOS:160,BAS:140,MON:52,LYM2:65,BAND:35},
+  leukemia:{CRH:55,ACTH:52,CORT:60,ALDO:50,TSH:50,T3T4:50,GH:50,IGF1:50,LH:50,FSH:50,TEST:50,E2:50,PRL:55,OXT:50,INS:52,PTH:52,EPO:38,SERO:45,HDL:42,LDL:52,HCY:68,RBC:28,WBC:185,PLT:28,LYM:175,HGB:25,NEU:38,EOS:50,BAS:50,MON:65,LYM2:160,BAND:52},
+  thromboc:{CRH:50,ACTH:50,CORT:52,ALDO:50,TSH:50,T3T4:50,GH:50,IGF1:50,LH:50,FSH:50,TEST:50,E2:50,PRL:50,OXT:50,INS:50,PTH:50,EPO:50,SERO:25,HDL:50,LDL:50,HCY:55,RBC:52,WBC:52,PLT:15,LYM:52,HGB:52,NEU:52,EOS:50,BAS:50,MON:50,LYM2:52,BAND:38},
+};
+function setPreset(k){const p=PRESETS[k];Object.keys(p).forEach(id=>vals[id]=p[id]);logLines=[];renderAll();document.getElementById('log-panel').innerHTML=`<span class="le-warn">ПРЕСЕТ: ${k.toUpperCase()}</span>`;updateStatus();}
+
+function makeSlider(h,container){
+  const col=document.createElement('div');col.className='eq-col';
+  const nm=document.createElement('div');
+  nm.className='eq-name'+(h.grp==='b'?' blood':h.grp==='l'?' leuko':'');
+  nm.textContent=h.name;nm.title=h.full;
+  const tr=document.createElement('div');
+  tr.className='slider-track'+(h.grp==='h'?'':' wide');
+  const cm=document.createElement('div');cm.className='center-mark';tr.appendChild(cm);
+  const fi=document.createElement('div');fi.id='fill-'+h.id;fi.className='slider-fill fill-norm';tr.appendChild(fi);
+  const kn=document.createElement('div');kn.className='slider-knob';kn.id='knob-'+h.id;tr.appendChild(kn);
+  function getV(cy){const r=tr.getBoundingClientRect();return Math.round(Math.max(0,Math.min(1,1-(cy-r.top)/r.height))*200);}
+  let drag=false;
+  tr.addEventListener('mousedown',e=>{drag=true;updateSlider(h.id,getV(e.clientY));e.preventDefault();});
+  window.addEventListener('mousemove',e=>{if(drag)updateSlider(h.id,getV(e.clientY));});
+  window.addEventListener('mouseup',()=>{drag=false;});
+  tr.addEventListener('touchstart',e=>{drag=true;updateSlider(h.id,getV(e.touches[0].clientY));},{passive:true});
+  window.addEventListener('touchmove',e=>{if(drag)updateSlider(h.id,getV(e.touches[0].clientY));},{passive:true});
+  window.addEventListener('touchend',()=>{drag=false;});
+  const ve=document.createElement('div');ve.className='eq-val';ve.id='val-'+h.id;
+  col.appendChild(nm);col.appendChild(tr);col.appendChild(ve);container.appendChild(col);
+}
+function buildUI(){
+  const wh=document.getElementById('sliders-hormones');
+  const wb=document.getElementById('sliders-blood');
+  const wl=document.getElementById('sliders-leuko');
+  HORMONES.forEach(h=>makeSlider(h,wh));
+  BLOOD_CELLS.forEach(h=>makeSlider(h,wb));
+  LEUKO_FORM.forEach(h=>makeSlider(h,wl));
+}
+function animateVis(){
+  const cv=document.getElementById('vis');
+  const ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height;let t=0;
+  function draw(){
+    ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+    const n=ALL.length,bw=Math.max(1,Math.floor(W/n)-1);
+    ALL.forEach((h,i)=>{
+      const v=vals[h.id];
+      const bh=Math.max(1,Math.round((v/200)*H+Math.sin(t*0.07+i*0.85)*1.5));
+      ctx.fillStyle=h.grp==='b'?(v>130?'#ff6600':v<30?'#884444':'#cc3333'):h.grp==='l'?(v>130?'#ffcc00':v<30?'#886622':'#cc8833'):(v>130?'#ff4444':v<30?'#4488ff':'#00ff41');
+      ctx.fillRect(i*(bw+1),H-bh,bw,bh);
+    });
+    t++;requestAnimationFrame(draw);
+  }
+  draw();
+}
+buildUI();renderAll();animateVis();
+</script>
+</body>
+</html>
